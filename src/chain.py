@@ -52,6 +52,8 @@ c.write("data.file")        write out all built chains to LAMMPS data file
 #   xlo,ylo,zlo = -xyz prd / 2
 #   xhi,yhi,zhi = x,y,zprd /2
 
+#   fel = flag of end-link(assign mtype 2 to end atom) default = 0(no) yes = 1
+
 # Imports and external programs
 
 import math
@@ -79,6 +81,7 @@ class chain:
     self.id = "chain"
     self.atoms = []
     self.bonds = []
+    self.fel = 0
 
     volume = n/rhostar
     prd = pow(volume/xaspect/yaspect/zaspect,1.0/3.0)
@@ -113,7 +116,12 @@ class chain:
           y = self.ylo + self.random()*self.yprd
           z = self.zlo + self.random()*self.zprd
 	  ix = iy = iz = 0
+          #Change StartPoint's Atom Type
+          if self.fel == 1:
+            self.mtype = 2
         else:
+          if self.fel == 1:
+            self.mtype = 1
           restriction = True
           while restriction:
             rsq = 2.0
@@ -134,6 +142,10 @@ class chain:
               dz = z - atoms[-2][5]
               if math.sqrt(dx*dx + dy*dy + dz*dz) <= self.dmin:
                 restriction = True
+            #Change EndPoint's Atom Type
+            if self.fel == 1:
+              if imonomer == nper - 1:
+                self.mtype = 2           
               
         x,y,z,ix,iy,iz = self.pbc(x,y,z,ix,iy,iz)
         idatom = id_atom_prev + imonomer + 1
