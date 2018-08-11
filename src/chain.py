@@ -3,7 +3,7 @@
 #
 # Copyright (2005) Sandia Corporation.  Under the terms of Contract
 # DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-# certain rights in this software.  This software is distributed under 
+# certain rights in this software.  This software is distributed under
 # the GNU General Public License.
 
 # chain tool
@@ -13,9 +13,8 @@ oneline = "Create bead-spring chains for LAMMPS input"
 docstr = """
 c = chain(N,rho)            setup box with N monomers at reduced density rho
 c = chain(N,rho,1,1,2)	    x,y,z = aspect ratio of box (def = 1,1,1)
-
+c.mtype = 2    		          set type of monomers (def = 1)
 c.seed = 48379              set random # seed (def = 12345)
-c.mtype = 2    		    set type of monomers (def = 1)
 c.btype = 1           	    set type of bonds (def = 1)
 c.blen = 0.97               set length of bonds (def = 0.97)
 c.dmin = 1.02               set min dist from i-1 to i+1 site (def = 1.02)
@@ -28,7 +27,7 @@ c.build(100,10)		    create 100 chains, each of length 10
 
   can be invoked multiple times interleaved with different settings
   must fill box with total of N monomers
-  
+
 c.write("data.file")        write out all built chains to LAMMPS data file
 """
 
@@ -53,6 +52,7 @@ c.write("data.file")        write out all built chains to LAMMPS data file
 #   xhi,yhi,zhi = x,y,zprd /2
 
 #   fel = flag of end-link(assign mtype 2 to end atom) default = 0(no) yes = 1
+#   fa = flag of angle (def = 0)
 
 # Imports and external programs
 
@@ -62,7 +62,7 @@ from data import data
 # Class definition
 
 class chain:
-  
+
   # --------------------------------------------------------------------
 
   def __init__(self,n,rhostar,*list):
@@ -81,7 +81,11 @@ class chain:
     self.id = "chain"
     self.atoms = []
     self.bonds = []
+
+    self.angles = []
+    self.agtype = 1
     self.fel = 0
+    self.fa = 0
 
     volume = n/rhostar
     prd = pow(volume/xaspect/yaspect/zaspect,1.0/3.0)
@@ -103,12 +107,15 @@ class chain:
     for ichain in xrange(n):
       atoms = []
       bonds = []
-      id_atom_prev = id_mol_prev = id_bond_prev = 0
+      angles = []
+      id_atom_prev = id_mol_prev = id_bond_prev = id_angle_prev = 0
       if len(self.atoms):
         id_atom_prev = self.atoms[-1][0]
         id_mol_prev = self.atoms[-1][1]
       if len(self.bonds):
         id_bond_prev = self.bonds[-1][0]
+      if len(self.angles):
+        id_angle_prev = self.angles[-1][0]
 
       for imonomer in xrange(nper):
         if imonomer == 0:
@@ -145,8 +152,8 @@ class chain:
             #Change EndPoint's Atom Type
             if self.fel == 1:
               if imonomer == nper - 1:
-                self.mtype = 2           
-              
+                self.mtype = 2
+
         x,y,z,ix,iy,iz = self.pbc(x,y,z,ix,iy,iz)
         idatom = id_atom_prev + imonomer + 1
         if self.id == "chain":
@@ -159,14 +166,19 @@ class chain:
             idmol = nper - imonomer
         else:
           raise StandardError,"chain ID is not a valid value"
-	        
+
         atoms.append([idatom,idmol,self.mtype,x,y,z,ix,iy,iz])
         if imonomer:
 	  bondid = id_bond_prev + imonomer
           bonds.append([bondid,self.btype,idatom-1,idatom])
-        
+        if self.fa:
+          if imonomer >= 2:
+            angleid = id_angle_prev + imonomer - 1
+            angles.append([angleid,self.agtype,idatom-2,idatom-1,idatom])
+
       self.atoms += atoms
       self.bonds += bonds
+      self.angles += angles
 
   # --------------------------------------------------------------------
 
@@ -183,22 +195,33 @@ class chain:
       list = [bond[1] for bond in self.bonds]
       btypes = max(list)
 
+    if self.fa:
+      agtypes = 0
+      if len(self.angles):
+        list = [angle[1] for angle in self.angles]
+        agtypes = max(list)
+
     # create the data file
 
     d = data()
     d.title = "LAMMPS FENE chain data file"
     d.headers["atoms"] = len(self.atoms)
-    d.headers["bonds"] = len(self.bonds)
+    d.headers["bonds"] = len(self.bonds)   
     d.headers["atom types"] = atypes
     d.headers["bond types"] = btypes
     d.headers["xlo xhi"] = (self.xlo,self.xhi)
     d.headers["ylo yhi"] = (self.ylo,self.yhi)
     d.headers["zlo zhi"] = (self.zlo,self.zhi)
+    if self.fa:
+      d.headers["angles"] = len(self.angles)
+      d.headers["angle types"] = agtypes
+
+
 
     lines = []
     for i in range(atypes): lines.append("%d 1.0\n" % (i+1))
     d.sections["Masses"] = lines
-    
+
     lines = []
     for atom in self.atoms:
       line = "%d %d %d %g %g %g %d %d %d\n" % \
@@ -206,12 +229,19 @@ class chain:
               atom[6], atom[7], atom[8])
       lines.append(line)
     d.sections["Atoms"] = lines
-    
+
     lines = []
     for bond in self.bonds:
       line = "%d %d %d %d\n" % (bond[0], bond[1], bond[2], bond[3])
       lines.append(line)
     d.sections["Bonds"] = lines
+
+    if self.fa:
+      lines = []
+      for angle in self.angles:
+        line = "%d %d %d %d %d\n" % (angle[0], angle[1], angle[2], angle[3], angle[4])
+        lines.append(line)
+      d.sections["Angles"] = lines
 
     d.write(file)
 
