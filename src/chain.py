@@ -73,6 +73,12 @@ class chain:
       xaspect = list[0]
       yaspect = list[1]
       zaspect = list[2]
+      if len(list) == 7:
+        box = list[3]
+        atoms = list[4]
+        bonds = list[5]
+        angles = list[6]
+
     self.seed = 12345
     self.mtype = 1
     self.btype = 1
@@ -100,6 +106,31 @@ class chain:
     self.zlo = -self.zprd/2.0
     self.zhi = self.zprd/2.0
 
+    if len(list) == 7:
+      box = list[3]
+      atoms = list[4]
+      bonds = list[5]
+      angles = list[6]
+    
+      self.xlo = box[0][0]
+      self.xhi = box[0][1]
+      self.xprd = self.xhi - self.xlo
+      self.ylo = box[1][0]
+      self.yhi = box[1][1]
+      self.yprd = self.yhi - self.ylo
+      self.zlo = box[2][0]
+      self.zhi = box[2][1]
+      self.zprd = self.zhi - self.zlo
+      
+      self.atoms = atoms
+      
+      self.bonds = bonds
+      self.btype = 2
+      
+      self.angles = angles
+      self.agtype = 2
+    
+
     print "Simulation box: %g by %g by %g" % (self.xprd,self.yprd,self.zprd)
 
   # --------------------------------------------------------------------
@@ -125,11 +156,11 @@ class chain:
           z = self.zlo + self.random()*self.zprd
 	  ix = iy = iz = 0
           #Change StartPoint's Atom Type
-          if self.fel == 1:
-            self.mtype = 2
+          if self.fel:
+            self.mtype = self.fel + 1
         else:
-          if self.fel == 1:
-            self.mtype = 1
+          if self.fel:
+            self.mtype = self.fel
           restriction = True
           while restriction:
             rsq = 2.0
@@ -140,20 +171,20 @@ class chain:
               rsq = dx*dx + dy*dy + dz*dz
             r = math.sqrt(rsq)
             dx,dy,dz = dx/r,dy/r,dz/r
-            x = atoms[-1][3] + dx*self.blen
-            y = atoms[-1][4] + dy*self.blen
-            z = atoms[-1][5] + dz*self.blen
+            x = atoms[-1][4] + dx*self.blen
+            y = atoms[-1][5] + dy*self.blen
+            z = atoms[-1][6] + dz*self.blen
             restriction = False
             if imonomer >= 2:
-              dx = x - atoms[-2][3]
-              dy = y - atoms[-2][4]
-              dz = z - atoms[-2][5]
+              dx = x - atoms[-2][4]
+              dy = y - atoms[-2][5]
+              dz = z - atoms[-2][6]
               if math.sqrt(dx*dx + dy*dy + dz*dz) <= self.dmin:
                 restriction = True
             #Change EndPoint's Atom Type
-            if self.fel == 1:
+            if self.fel:
               if imonomer == nper - 1:
-                self.mtype = 2
+                self.mtype = self.fel + 1
 
         x,y,z,ix,iy,iz = self.pbc(x,y,z,ix,iy,iz)
         idatom = id_atom_prev + imonomer + 1
