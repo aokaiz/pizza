@@ -86,6 +86,7 @@ class chain:
     self.agtype = 1
     self.fel = 0
     self.fa = 0
+    self.q = 0    #q
 
     volume = n/rhostar
     prd = pow(volume/xaspect/yaspect/zaspect,1.0/3.0)
@@ -167,7 +168,7 @@ class chain:
         else:
           raise StandardError,"chain ID is not a valid value"
 
-        atoms.append([idatom,idmol,self.mtype,x,y,z,ix,iy,iz])
+        atoms.append([idatom,idmol,self.mtype,self.q,x,y,z,ix,iy,iz])
         if imonomer:
 	  bondid = id_bond_prev + imonomer
           bonds.append([bondid,self.btype,idatom-1,idatom])
@@ -224,9 +225,9 @@ class chain:
 
     lines = []
     for atom in self.atoms:
-      line = "%d %d %d %g %g %g %d %d %d\n" % \
+      line = "%d %d %d %d %g %g %g %d %d %d\n" % \
              (atom[0], atom[1], atom[2], atom[3], atom[4], atom[5],
-              atom[6], atom[7], atom[8])
+              atom[6], atom[7], atom[8], atom[9])
       lines.append(line)
     d.sections["Atoms"] = lines
 
